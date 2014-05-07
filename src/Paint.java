@@ -16,6 +16,10 @@ import rx.subscriptions.Subscriptions;
 
 public class Paint extends Application {
 
+    public static void main(String[] args) {
+        javafx.application.Application.launch(Paint.class);
+    }
+
     @Override
     public void start(Stage stage) throws Exception {
 
