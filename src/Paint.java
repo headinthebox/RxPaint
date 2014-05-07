@@ -1,5 +1,6 @@
 import javafx.application.Application;
 import javafx.event.EventHandler;
+import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -10,12 +11,14 @@ import static javafx.scene.input.MouseEvent.*;
 
 import rx.Observable;
 import rx.Subscriber;
+import rx.functions.Func1;
 import rx.subscriptions.Subscriptions;
 
 public class Paint extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
+
         Integer screenWidth = 800;
         Integer screenHeight = 600;
 
@@ -24,9 +27,34 @@ public class Paint extends Application {
         Group root = new Group();
         root.getChildren().add(canvas);
 
-        Observable<Boolean> merge = Observable.merge(leftButtonDown(canvas), leftButtonUp(canvas));
+        Observable<Boolean> leftButtonUp = leftButtonUp(canvas);
+        Observable<Boolean>  leftButtonDown = leftButtonDown(canvas);
 
-        merge.subscribe(System.out::println);
+        leftButtonUp.subscribe(up -> System.out.println("up: "+up));
+        leftButtonDown.subscribe(down -> System.out.println("down: "+down));
+
+
+        Observable<MouseEvent> mouseMoves = mouseMoves(canvas);
+        Observable<MouseEvent>  mouseDrags = mouseDrags(canvas);
+
+        Observable<MouseEvent>  mouse = Observable.merge(mouseMoves, mouseDrags);
+
+        Observable<Point2D[]> mouseDiffs =
+                mouse
+                .buffer(2, 1)
+                .map(buffer -> new Point2D[]{
+                    new Point2D(buffer.get(0).getX(), buffer.get(0).getY()),
+                    new Point2D(buffer.get(1).getX(), buffer.get(1).getY())
+                });
+
+        Observable<Point2D[]> paint =
+                mouseDiffs
+                .window(leftButtonDown, (Boolean b) -> leftButtonUp)
+                .flatMap(x -> x);
+
+        paint.subscribe(diff -> {
+            gc.strokeLine(diff[0].getX(), diff[0].getY(),diff[1].getX(), diff[1].getY());
+        });
 
         stage.setTitle("Rx Paint");
         stage.setScene(new Scene(root));
@@ -49,7 +77,7 @@ public class Paint extends Application {
         });
     }
 
-    Observable<javafx.scene.input.MouseEvent> mouseMoves(Canvas canvas) {
+    Observable<MouseEvent> mouseMoves(Canvas canvas) {
         return Observable.create((Subscriber<? super MouseEvent> subscriber) -> {
             EventHandler<MouseEvent> handler = subscriber::onNext;
             canvas.addEventHandler(MOUSE_MOVED, handler);
@@ -57,7 +85,7 @@ public class Paint extends Application {
         });
     }
 
-    Observable<javafx.scene.input.MouseEvent> mouseDrags(Canvas canvas) {
+    Observable<MouseEvent> mouseDrags(Canvas canvas) {
         return Observable.create((Subscriber<? super MouseEvent> subscriber) -> {
             EventHandler<MouseEvent> handler = subscriber::onNext;
             canvas.addEventHandler(MOUSE_DRAGGED, handler);
