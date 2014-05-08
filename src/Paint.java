@@ -20,6 +20,10 @@ import java.util.function.Function;
 
 public class Paint extends Application {
 
+    public static void main(String[] args) {
+        javafx.application.Application.launch(Paint.class);
+    }
+    
     @Override
     public void start(Stage stage) throws Exception {
 
